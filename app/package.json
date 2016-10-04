@@ -1,0 +1,14 @@
+{
+  "name": "oraclego",
+  "version": "1.0.0",
+  "description": "oraclego",
+  "main": "index.js",
+  "scripts": {
+    "test": "test"
+  },
+  "author": "hhayakaw",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.14.0"
+  }
+}
