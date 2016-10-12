@@ -31,40 +31,58 @@ router.use(function (request, response, next) {
     next();
 });
 
-// 地図上の物のサンプルデータ
-var stuffList = [
-    {
-        id: "001",
-        name: "非常用消化器A",
-        type: "disaster_equipment",
-        description: "消化器です",
-        image: "images/001.jpg",
-        distance: 100,
-        latitude: 35.642288,
-        longitude: 139.713643
-    }, {
-        id: "002",
-        name: "トイレA",
-        type: "facility",
-        description: "トイレです",
-        image: "images/002.jpg",
-        distance: 100,
-        latitude: 35.641794,
-        longitude: 139.714178
-    }, {
-        id: "003",
-        name: "カレーの王様",
-        type: "restaulant",
-        description: "カレー屋です",
-        image: "images/003.jpg",
-        distance: 100,
-        latitude: 35.643265,
-        longitude: 139.713191
-    }
-]
-
 router.route('/list').get(function(request, response) {
     response.json(stuffList);
+});
+
+/**
+ * GET /nearby
+ * Returns staffs nearby current location
+ */
+router.route('/nearby').get(function (request, response) {
+    var lat = request.query.lat;
+    var lon = request.query.lon;
+    var dist = request.query.dist;
+    console.log("GET STAFFS NEARBY CURRENT LOCATION: " + "lat=" + lat + " lon=" + lon + " dist=" + dist);
+    oracledb.getConnection(connectionProperties, function (err, connection) {
+        if (err) {
+            console.error(err.message);
+            response.status(500).send("Error connecting to DB");
+            return;
+        }
+        connection.execute(
+            "SELECT ID, NAME, CATEGORY, DESCRIPTION, IMAGE, LATITUDE, LONGITUDE FROM STAFFS WHERE SDO_WITHIN_DISTANCE(GEO_LOCATION, SDO_GEOMETRY('POINT(" + lat + " " + lon + ")', 4326), 'distance=" + dist + " unit=KM') = 'TRUE'",
+            [],
+            {outFormat: oracledb.OBJECT},
+            function (err, result) {
+                if (err) {
+                    console.error(err.message);
+                    response.status(500).send("Error getting data from DB");
+                    doRelease(connection);
+                    return;
+                }
+                console.log("RESULTSET:" + JSON.stringify(result));
+                if (result.rows.length < 1) {
+                    response.status(400).send("No staffs found nearby");
+                    return;
+                }
+                var staffs = [];
+                result.rows.forEach(function (element) {
+                    staffs.push({
+                        id: element.ID,
+                        name: element.NAME,
+                        category: element.CATEGORY,
+                        description: element.DESCRIPTION,
+                        image: element.IMAGE,
+                        latitude: element.LATITUDE,
+                        longitude: element.LONGITUDE
+                    });
+                }, this);
+                response.json(staffs);
+                doRelease(connection);
+            }
+        );
+    });
 });
 
 /**
@@ -81,7 +99,7 @@ router.route('/:id').get(function (request, response) {
         }
         var id = request.params.id;
         connection.execute(
-            "SELECT ID, NAME FROM STAFFS WHERE ID = :id",
+            "SELECT ID, NAME, CATEGORY, DESCRIPTION, IMAGE, LATITUDE, LONGITUDE FROM STAFFS WHERE ID = :id",
             [id],
             {outFormat: oracledb.OBJECT},
             function (err, result) {
@@ -93,7 +111,15 @@ router.route('/:id').get(function (request, response) {
                 }
                 console.log("RESULTSET:" + JSON.stringify(result));
                 if (result.rows.length === 1) {
-                    var staff = {id: result.rows[0].ID, name: result.rows[0].NAME, geo_location: result.rows[0].GEO_LOCATION};
+                    var staff = {
+                        id: result.rows[0].ID,
+                        name: result.rows[0].NAME,
+                        category: result.rows[0].CATEGORY,
+                        description: result.rows[0].DESCRIPTION,
+                        image: result.rows[0].IMAGE,
+                        latitude: result.rows[0].LATITUDE,
+                        longitude: result.rows[0].LONGITUDE
+                    };
                     response.json(staff);
                     doRelease(connection);
                 } else {
