@@ -1,8 +1,11 @@
 {
-  "runtime":{
-    "majorVersion":"0.12"
-  },
-  "command": "node index.js",
-  "release": {},
-  "notes": "Oracle Go"
+    "runtime":{
+        "majorVersion":"0.12"
+    },
+    "command": "node index.js",
+    "release": {
+        "commit": "verion 0.1 .",
+        "version": "0.1"
+    },
+    "notes": "Oracle Go"
 }
