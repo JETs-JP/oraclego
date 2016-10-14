@@ -3,7 +3,6 @@ var bodyParser = require('body-parser');
 var oracledb = require('oracledb');
 
 var PORT = process.env.PORT || 8089;
-
 var app = express();
 
 var connectionProperties = {
@@ -11,6 +10,7 @@ var connectionProperties = {
     password: process.env.DBAAS_USER_PASSWORD || "password",
     connectString: process.env.DBAAS_DEFAULT_CONNECT_DESCRIPTOR || "URL"
 };
+oracledb.autoCommit = true;
 
 function doRelease(connection) {
     connection.release(function (err) {
@@ -19,6 +19,11 @@ function doRelease(connection) {
         }
     });
 }
+
+// configure app to use bodyParser()
+// this will let us get the data from a POST
+app.use(bodyParser.urlencoded({ extended: true }));
+app.use(bodyParser.json({ type: '*/*' }));
 
 var router = express.Router();
 router.use(function (request, response, next) {
@@ -125,6 +130,53 @@ router.route('/:id').get(function (request, response) {
                 } else {
                     response.end();
                 }
+            }
+        );
+    });
+});
+
+/**
+ * POST /
+ * Saves a new stuff.
+ */
+router.route('/').post(function(request, response) {
+    console.log("POST STAFF");
+    oracledb.getConnection(connectionProperties, function(err, connection) {
+        if (err) {
+            console.error(err.message);
+            response.status(500).send("Error connecting to DB");
+            return;
+        }
+        var body = request.body;
+        connection.execute(
+            "INSERT INTO ORACLEGO.STAFFS (" +
+                "ID, NAME, CATEGORY, DESCRIPTION, IMAGE, GEO_LOCATION, LATITUDE, LONGITUDE" +
+            ") VALUES (" +
+                "(SELECT MAX(ID) + 1 FROM ORACLEGO.STAFFS)," +
+                ":name," +
+                ":category," +
+                ":description," +
+                ":image," +
+                "MDSYS.SDO_GEOMETRY (" +
+                    "2001," +
+                    "4326," +
+                    "MDSYS.SDO_POINT_TYPE (:latitude, :longitude, NULL)," +
+                    "NULL," +
+                    "NULL" +
+                ")," +
+                ":latitude," +
+                ":longitude" +
+            ")",
+            [body.name, body.category, body.description, body.image, body.latitude, body.longitude, body.latitude, body.longitude],
+            function (err, result) {
+                if (err) {
+                    console.error(err.message);
+                    response.status(500).send("Error saving staff to DB");
+                    doRelease(connection);
+                    return;
+                }
+                response.status(201).end();
+                doRelease(connection);
             }
         );
     });
