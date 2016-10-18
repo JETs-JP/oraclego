@@ -155,24 +155,7 @@ router.route('/').post(function(request, response) {
         }
         var body = request.body;
         connection.execute(
-            "INSERT INTO ORACLEGO.STAFFS (" +
-                "ID, NAME, CATEGORY, DESCRIPTION, IMAGE, GEO_LOCATION, LATITUDE, LONGITUDE" +
-            ") VALUES (" +
-                "(SELECT MAX(ID) + 1 FROM ORACLEGO.STAFFS)," +
-                ":name," +
-                ":category," +
-                ":description," +
-                ":image," +
-                "MDSYS.SDO_GEOMETRY (" +
-                    "2001," +
-                    "4326," +
-                    "MDSYS.SDO_POINT_TYPE (:latitude, :longitude, NULL)," +
-                    "NULL," +
-                    "NULL" +
-                ")," +
-                ":latitude," +
-                ":longitude" +
-            ")",
+            "INSERT INTO ORACLEGO.STAFFS (ID, NAME, CATEGORY, DESCRIPTION, IMAGE, GEO_LOCATION, LATITUDE, LONGITUDE) VALUES ((SELECT MAX(ID) + 1 FROM ORACLEGO.STAFFS), :name, :category, :description, :image, MDSYS.SDO_GEOMETRY (2001, 4326, MDSYS.SDO_POINT_TYPE (:latitude, :longitude, NULL), NULL, NULL), :latitude, :longitude)",
             [body.name, body.category, body.description, body.image, body.latitude, body.longitude, body.latitude, body.longitude],
             function (err, result) {
                 if (err) {
