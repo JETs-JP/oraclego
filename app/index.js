@@ -1,13 +1,14 @@
 var express = require('express');
 var bodyParser = require('body-parser');
 var oracledb = require('oracledb');
+var sanitizer = require('sanitizer');
 
 var PORT = process.env.PORT || 8089;
 var app = express();
 
 var connectionProperties = {
-    user: process.env.DBAAS_USER_NAME || "oracle",
-    password: process.env.DBAAS_USER_PASSWORD || "password",
+    user         : process.env.DBAAS_USER_NAME || "oracle",
+    password     : process.env.DBAAS_USER_PASSWORD || "password",
     connectString: process.env.DBAAS_DEFAULT_CONNECT_DESCRIPTOR || "URL"
 };
 oracledb.autoCommit = true;
@@ -45,9 +46,14 @@ router.route('/list').get(function(request, response) {
  * Returns staffs nearby current location
  */
 router.route('/nearby').get(function (request, response) {
-    var lat = request.query.lat;
-    var lon = request.query.lon;
-    var dist = request.query.dist;
+    var lat = sanitizer.escape(request.query.lat);
+    var lon = sanitizer.escape(request.query.lon);
+    var dist = sanitizer.escape(request.query.dist);
+    if (isNaN(lat) || isNaN(lon) || isNaN(dist)) {
+        console.error("Invalid request parameter");
+        response.status(400).send("Invalid request parameter");
+        return;
+    }
     console.log("GET STAFFS NEARBY CURRENT LOCATION: " + "lat=" + lat + " lon=" + lon + " dist=" + dist);
     oracledb.getConnection(connectionProperties, function (err, connection) {
         if (err) {
