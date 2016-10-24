@@ -5,6 +5,7 @@ var sanitizer = require('sanitizer');
 
 var PORT = process.env.PORT || 8089;
 var app = express();
+app.use('/images', express.static('images'));
 
 var connectionProperties = {
     user         : process.env.DBAAS_USER_NAME || "oracle",
@@ -43,7 +44,7 @@ router.route('/list').get(function(request, response) {
 
 /**
  * GET /nearby
- * Returns staffs nearby current location
+ * Returns stuffs nearby current location
  */
 router.route('/nearby').get(function (request, response) {
     var lat = sanitizer.escape(request.query.lat);
@@ -54,7 +55,7 @@ router.route('/nearby').get(function (request, response) {
         response.status(400).send("Invalid request parameter");
         return;
     }
-    console.log("GET STAFFS NEARBY CURRENT LOCATION: " + "lat=" + lat + " lon=" + lon + " dist=" + dist);
+    console.log("GET STUFFS NEARBY CURRENT LOCATION: " + "lat=" + lat + " lon=" + lon + " dist=" + dist);
     oracledb.getConnection(connectionProperties, function (err, connection) {
         if (err) {
             console.error(err.message);
@@ -62,7 +63,7 @@ router.route('/nearby').get(function (request, response) {
             return;
         }
         connection.execute(
-            "SELECT ID, NAME, CATEGORY, DESCRIPTION, IMAGE, LATITUDE, LONGITUDE FROM STAFFS WHERE SDO_WITHIN_DISTANCE(GEO_LOCATION, SDO_GEOMETRY('POINT(" + lat + " " + lon + ")', 4326), 'distance=" + dist + " unit=KM') = 'TRUE'",
+            "SELECT ID, NAME, CATEGORY, DESCRIPTION, IMAGE, LATITUDE, LONGITUDE FROM STUFFS WHERE SDO_WITHIN_DISTANCE(GEO_LOCATION, SDO_GEOMETRY('POINT(" + lat + " " + lon + ")', 4326), 'distance=" + dist + " unit=KM') = 'TRUE'",
             [],
             {outFormat: oracledb.OBJECT},
             function (err, result) {
@@ -74,12 +75,12 @@ router.route('/nearby').get(function (request, response) {
                 }
                 console.log("RESULTSET:" + JSON.stringify(result));
                 if (result.rows.length < 1) {
-                    response.status(400).send("No staffs found nearby");
+                    response.status(400).send("No stuffs found nearby");
                     return;
                 }
-                var staffs = [];
+                var stuffs = [];
                 result.rows.forEach(function (element) {
-                    staffs.push({
+                    stuffs.push({
                         id: element.ID,
                         name: element.NAME,
                         category: element.CATEGORY,
@@ -89,7 +90,7 @@ router.route('/nearby').get(function (request, response) {
                         longitude: element.LONGITUDE
                     });
                 }, this);
-                response.json(staffs);
+                response.json(stuffs);
                 doRelease(connection);
             }
         );
@@ -98,10 +99,10 @@ router.route('/nearby').get(function (request, response) {
 
 /**
  * GET /id
- * Returns the detail of a staff
+ * Returns the detail of a stuff
  */
 router.route('/:id').get(function (request, response) {
-    console.log("GET STAFF BY ID:" + request.params.id);
+    console.log("GET STUFF BY ID:" + request.params.id);
     oracledb.getConnection(connectionProperties, function (err, connection) {
         if (err) {
             console.error(err.message);
@@ -110,7 +111,7 @@ router.route('/:id').get(function (request, response) {
         }
         var id = request.params.id;
         connection.execute(
-            "SELECT ID, NAME, CATEGORY, DESCRIPTION, IMAGE, LATITUDE, LONGITUDE FROM STAFFS WHERE ID = :id",
+            "SELECT ID, NAME, CATEGORY, DESCRIPTION, IMAGE, LATITUDE, LONGITUDE FROM STUFFS WHERE ID = :id",
             [id],
             {outFormat: oracledb.OBJECT},
             function (err, result) {
@@ -122,7 +123,7 @@ router.route('/:id').get(function (request, response) {
                 }
                 console.log("RESULTSET:" + JSON.stringify(result));
                 if (result.rows.length === 1) {
-                    var staff = {
+                    var stuff = {
                         id: result.rows[0].ID,
                         name: result.rows[0].NAME,
                         category: result.rows[0].CATEGORY,
@@ -131,7 +132,7 @@ router.route('/:id').get(function (request, response) {
                         latitude: result.rows[0].LATITUDE,
                         longitude: result.rows[0].LONGITUDE
                     };
-                    response.json(staff);
+                    response.json(stuff);
                     doRelease(connection);
                 } else {
                     response.end();
@@ -146,7 +147,7 @@ router.route('/:id').get(function (request, response) {
  * Saves a new stuff.
  */
 router.route('/').post(function(request, response) {
-    console.log("POST STAFF");
+    console.log("POST STUFF");
     oracledb.getConnection(connectionProperties, function(err, connection) {
         if (err) {
             console.error(err.message);
@@ -155,12 +156,12 @@ router.route('/').post(function(request, response) {
         }
         var body = request.body;
         connection.execute(
-            "INSERT INTO ORACLEGO.STAFFS (ID, NAME, CATEGORY, DESCRIPTION, IMAGE, GEO_LOCATION, LATITUDE, LONGITUDE) VALUES ((SELECT MAX(ID) + 1 FROM ORACLEGO.STAFFS), :name, :category, :description, :image, MDSYS.SDO_GEOMETRY (2001, 4326, MDSYS.SDO_POINT_TYPE (:latitude, :longitude, NULL), NULL, NULL), :latitude, :longitude)",
+            "INSERT INTO ORACLEGO.STUFFS (ID, NAME, CATEGORY, DESCRIPTION, IMAGE, GEO_LOCATION, LATITUDE, LONGITUDE) VALUES ((SELECT MAX(ID) + 1 FROM ORACLEGO.STUFFS), :name, :category, :description, :image, MDSYS.SDO_GEOMETRY (2001, 4326, MDSYS.SDO_POINT_TYPE (:latitude, :longitude, NULL), NULL, NULL), :latitude, :longitude)",
             [body.name, body.category, body.description, body.image, body.latitude, body.longitude, body.latitude, body.longitude],
             function (err, result) {
                 if (err) {
                     console.error(err.message);
-                    response.status(500).send("Error saving staff to DB");
+                    response.status(500).send("Error saving stuff to DB");
                     doRelease(connection);
                     return;
                 }
@@ -174,4 +175,4 @@ router.route('/').post(function(request, response) {
 app.use('/stuffs', router);
 var server = app.listen(PORT, function() {
     console.log("Node.js is listening to PORT:" + server.address().port);
-});
+})
